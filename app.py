@@ -6,7 +6,7 @@ import os
 
 FILE_NAME = "habit_data.csv"
 
-# Initialize data file
+# Initialize file if not exists
 if not os.path.exists(FILE_NAME):
     df = pd.DataFrame(columns=["date", "habit", "status"])
     df.to_csv(FILE_NAME, index=False)
@@ -15,7 +15,7 @@ if not os.path.exists(FILE_NAME):
 def load_data():
     return pd.read_csv(FILE_NAME)
 
-# Save entry
+# Add entry
 def add_entry(habit, status):
     df = load_data()
     today = datetime.now().strftime("%Y-%m-%d")
@@ -29,19 +29,24 @@ def add_entry(habit, status):
     df = pd.concat([df, new_entry], ignore_index=True)
     df.to_csv(FILE_NAME, index=False)
 
-# UI
+# Page config
 st.set_page_config(page_title="Habit Tracker", layout="wide")
 
+# Title
 st.title("📊 Habit Tracker Dashboard")
 
-# Sidebar input
+# Sidebar
 st.sidebar.header("Add Habit")
 
 habit = st.sidebar.text_input("Habit Name")
-status = st.sidebar.selectbox("Completed?", [1, 0], format_func=lambda x: "Yes" if x == 1 else "No")
+status = st.sidebar.selectbox(
+    "Completed?",
+    [1, 0],
+    format_func=lambda x: "Yes" if x == 1 else "No"
+)
 
 if st.sidebar.button("Add Entry"):
-    if habit:
+    if habit.strip() != "":
         add_entry(habit, status)
         st.sidebar.success("Entry added!")
     else:
@@ -55,31 +60,41 @@ if not df.empty:
 
     col1, col2 = st.columns(2)
 
-    # Completion rate chart
+    # 📊 Completion Rate Chart
     with col1:
         st.subheader("📊 Habit Completion Rate")
-        summary = df.groupby("habit")["status"].mean()
 
-        fig, ax = plt.subplots()
-        summary.plot(kind='bar', ax=ax)
-        ax.set_ylabel("Completion Rate")
-        ax.set_xlabel("Habit")
-        st.pyplot(fig)
+        summary = df.groupby("habit")["status"].mean().reset_index()
 
-    # Daily trend chart
+        fig = px.bar(
+            summary,
+            x="habit",
+            y="status",
+            labels={"status": "Completion Rate", "habit": "Habit"},
+            title="Habit Completion Rate"
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    # 📈 Daily Trend Chart
     with col2:
         st.subheader("📈 Daily Progress")
-        daily = df.groupby("date")["status"].mean()
 
-        fig, ax = plt.subplots()
-        daily.plot(ax=ax)
-        ax.set_ylabel("Completion Rate")
-        ax.set_xlabel("Date")
-        st.pyplot(fig)
+        daily = df.groupby("date")["status"].mean().reset_index()
 
-    # Show raw data
-    st.subheader("📋 Data")
-    st.dataframe(df)
+        fig = px.line(
+            daily,
+            x="date",
+            y="status",
+            labels={"status": "Completion Rate", "date": "Date"},
+            title="Daily Habit Performance"
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    # 📋 Raw Data
+    st.subheader("📋 Your Data")
+    st.dataframe(df, use_container_width=True)
 
 else:
     st.info("No data yet. Start adding habits!")
